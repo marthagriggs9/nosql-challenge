@@ -128,7 +128,7 @@ uk_food_db.establishments.update_one(
 # Confirm that the new restaurant was updated
 establishments.find_one({'BusinessName': 'Penang Flavours'})
 ```
-![image](https://user-images.githubusercontent.com/115905663/226145433-8cd91c3a-16ab-4324-a6bf-171afc6c7f2b.png)
+![image](https://user-images.githubusercontent.com/115905663/226145622-1364239a-68a7-48d6-a972-8e0d5cb62b8b.png)
 
 4. The magazine is not interested in any establishments in Dover, so check how many documents contain the Dover Local Authority. Then, remove any establishments within the Dover Local Authority from the database and check the number of documents to ensure they were deleted. 
 ```ruby
@@ -200,11 +200,142 @@ Unless otherwise stated, for each question:
   * Display the first document in the results using `pprint`. 
   * Convert the result to a Pandas DataFrame, print the number of rows in the DataFrame and display the first 10 rows. 
 
+
+
 1. Which establishments have a hygiene score equal to 20?
+```ruby
+# Find the establishments with a hygiene score of 20
+query = {'scores.Hygiene': 20}
+
+# Use count_documents to display the number of documents in the result
+print("Number of restaurants with a Hygiene score of 20:", establishments.count_documents(query))
+# Display the first document in the results using pprint
+print("First Result:")
+results = establishments.find(query)
+
+pprint(results[0])
+```
+![image](https://user-images.githubusercontent.com/115905663/226145853-3b941fee-92c3-4e26-b5b6-cd142e925993.png)
+
+```ruby
+# Convert the result to a Pandas DataFrame
+hygiene_df = pd.DataFrame(results)
+# Display the number of rows in the DataFrame
+print("Rows in DataFrame: ", len(hygiene_df))
+# Display the first 10 rows of the DataFrame
+hygiene_df.head(10)
+```
+![image](https://user-images.githubusercontent.com/115905663/226145909-5d0fda07-718e-4e05-8c05-798add5610f0.png)
 
 2. Which establishments in London have a `RatingValue` greater that or equal to 4?
+```ruby
+# Find the establishments with London as the Local Authority and has a RatingValue greater than or equal to 4.
+query = {'LocalAuthorityName': {'$regex': 'London'}, 
+         'RatingValue': {'$gte': '4'}}
+
+# Use count_documents to display the number of documents in the result
+print("Number of restaurants in London with a Rating Value of 4 or more:", establishments.count_documents(query))
+# Display the first document in the results using pprint
+print("First Result:")
+results = establishments.find(query)
+pprint(results[0])
+```
+![image](https://user-images.githubusercontent.com/115905663/226145926-9a545e71-d6ff-48e2-8df9-6204ca20987e.png)
+
+```ruby
+# Convert the result to a Pandas DataFrame
+london_rating_df = pd.DataFrame(results)
+# Display the number of rows in the DataFrame
+print("Rows in DataFrame: ", len(london_rating_df))
+# Display the first 10 rows of the DataFrame
+london_rating_df.head(10)
+```
+![image](https://user-images.githubusercontent.com/115905663/226145951-a6a0e37d-53a6-4eeb-9f5d-e6ad9b1313af.png)
 
 3. What are the top 5 establishments with a `RatingValue` of '5', sorted by lowest hygiene score, nearest to the new restaurant added, 'Penang Flavours'?
+```ruby
+#Find latitude and longitude of 'Penang Flavours'
+pprint(establishments.find_one({'BusinessName':'Penang Flavours'}, {'geocode.latitude', 'geocode.longitude'}))
+```
+![image](https://user-images.githubusercontent.com/115905663/226145965-1dc07343-a22f-4e01-a1c2-1ca26ccc4169.png)
+
+```ruby
+# Search within 0.01 degree on either side of the latitude and longitude.
+# Rating value must equal 5
+# Sort by hygiene score
+
+degree_search = 0.01
+latitude = 51.490142
+longitude = 0.08384
+
+query = {'RatingValue': '5', 
+         'geocode.latitude': {'$lte': (latitude + degree_search), '$gte': (latitude - degree_search)}, 
+         'geocode.longitude' : {'$lte': (longitude + degree_search), '$gte': (longitude - degree_search)}}
+sort =  [('scores.Hygiene', 1)]
+
+limit = 5
+# Print the results
+pprint(list(establishments.find(query).sort(sort).limit(limit)))
+```
+![image](https://user-images.githubusercontent.com/115905663/226145991-7a6d5f0e-9e41-4d22-84c5-42bd471d61ee.png)
+
+```ruby
+# Convert result to Pandas DataFrame
+rating_value_df = pd.DataFrame(establishments.find(query).sort(sort).limit(limit))
+rating_value_df
+```
+![image](https://user-images.githubusercontent.com/115905663/226146023-c24f7ce1-cbc7-4b1a-8a8e-687c71d446ca.png)
 
 4. How many establishments in each Local Authority area have a hygiene score of 0? Sort the results from highest to lowest and print out the top ten local authority areas. 
+```ruby
+# Create a pipeline that: 
+# 1. Matches establishments with a hygiene score of 0
+match_query = {'$match': {'scores.Hygiene': 0}}
+# 2. Groups the matches by Local Authority
+group_query = {'$group': {'_id': {'LocalAuthorityName': '$LocalAuthorityName'}, 'count': {'$sum': 1}}} 
+# 3. Sorts the matches from highest to lowest
+sort_values = {'$sort': {'count': -1}}
+#put the pipeline together
+pipeline = [match_query, group_query, sort_values]
+#Run the pipeline through the aggregate method, case the results as a list and save the results to a variable
+results = list(establishments.aggregate(pipeline))
+# Print the number of documents in the result
+print("Number of rows in result: ", len(results))
+# Print the first 10 results
+pprint(results[0:10])
+```
+![image](https://user-images.githubusercontent.com/115905663/226146059-f5a91804-94c1-468d-b652-11c96bc4370b.png)
 
+```ruby
+#Extract the fields from the _id so they're in separate columns in a Pandas DataFrame
+aggregated_df = pd.json_normalize(results)
+print(f"There are {len(aggregated_df)} rows in the DataFrame.")
+aggregated_df.head(10)
+```
+![image](https://user-images.githubusercontent.com/115905663/226146076-3767e859-1890-4c5a-b58c-d8f83815f3a1.png)
+
+```ruby
+# Convert the result to a Pandas DataFrame
+hygiene_score_0_df = pd.DataFrame(aggregated_df)
+# Display the number of rows in the DataFrame
+print(f"There are {len(hygiene_score_0_df)} rows in the DataFrame.")
+# Display the first 10 rows of the DataFrame
+hygiene_score_0_df.head(10)
+```
+![image](https://user-images.githubusercontent.com/115905663/226146090-32fb026b-4433-462d-b689-16551706407a.png)
+
+```ruby
+#Rename columns 
+hygiene_score_0_df = hygiene_score_0_df.rename(columns= {"count": "Number of Establishments", 
+                                               "_id.LocalAuthorityName": "Local Authority Name"})
+hygiene_score_0_df.head()
+```
+![image](https://user-images.githubusercontent.com/115905663/226146115-5fab4510-c97c-4fe4-ae73-399dae66eada.png)
+
+```ruby
+#Reorder the columns
+hygiene_score_0_df = hygiene_score_0_df[["Local Authority Name", "Number of Establishments"]]
+#Print the first 10 rows of the DataFrame
+hygiene_score_0_df.head(10)
+```
+![image](https://user-images.githubusercontent.com/115905663/226146128-5fcbb878-6c70-4267-8670-cbce5912e2c8.png)
