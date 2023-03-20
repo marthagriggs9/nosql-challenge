@@ -122,13 +122,13 @@ for result in results:
 # Update the new restaurant with the correct BusinessTypeID
 uk_food_db.establishments.update_one(
     halal_restaurant, 
-    {'$set': {'BusinessTypeID': '1'}})
+    {'$set': {'BusinessTypeID': 1}})
 ```
 ```ruby
 # Confirm that the new restaurant was updated
 establishments.find_one({'BusinessName': 'Penang Flavours'})
 ```
-![image](https://user-images.githubusercontent.com/115905663/226145622-1364239a-68a7-48d6-a972-8e0d5cb62b8b.png)
+![image](https://user-images.githubusercontent.com/115905663/226478692-07d1d9f5-5771-475d-a0b1-d15cb2c57548.png)
 
 4. The magazine is not interested in any establishments in Dover, so check how many documents contain the Dover Local Authority. Then, remove any establishments within the Dover Local Authority from the database and check the number of documents to ensure they were deleted. 
 ```ruby
